@@ -18,7 +18,7 @@ namespace WodiLib.Sys
     /// ウディタ仕様の文字列
     /// </summary>
     [Serializable]
-    internal class WoditorString : IEquatable<WoditorString>
+    public class WoditorString : IEquatable<WoditorString>
     {
         /// <summary>
         /// 特殊変換文字群

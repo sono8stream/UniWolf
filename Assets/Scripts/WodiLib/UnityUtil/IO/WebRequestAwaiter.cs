@@ -3,7 +3,7 @@ using System.Runtime.CompilerServices;
 using UnityEngine;
 using UnityEngine.Networking;
 
-namespace WodiLib.UnityUtil
+namespace WodiLib.UnityUtil.IO
 {
     public class WebRequestAwaiter : INotifyCompletion
     {

@@ -12,7 +12,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using WodiLib.Cmn;
 using WodiLib.Sys;
-using UnityEngine.Networking;
 
 namespace WodiLib.IO
 {
