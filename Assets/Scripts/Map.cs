@@ -6,6 +6,7 @@ using UnityEngine.UI;
 using WodiLib.UnityUtil.IO;
 using System;
 using WodiLib.Map;
+using System.Linq;
 
 public class Map : MonoBehaviour
 {
@@ -21,7 +22,7 @@ public class Map : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        ReadTest();
+        ReadSystemDBTest();
     }
 
     // Update is called once per frame
@@ -38,5 +39,36 @@ public class Map : MonoBehaviour
             var mpsReader = new MpsFileReader();
         MapData mapData = await mpsReader.ReadFileAsync(path);
         infoText.text = mapData.MapSizeWidth.ToString();
+    }
+
+    async void ReadMapTreeTest()
+    {
+        pathText.text = Application.streamingAssetsPath;
+        string path = Application.streamingAssetsPath + "/Project/Data/BasicData/MapTree.dat";
+        var reader = new MapTreeDataFileReader();
+        MapTreeData data = await reader.ReadFileAsync(path);
+        for(int i = 0; i < data.TreeNodeList.Count; i++)
+        {
+            MapTreeNode node = data.TreeNodeList[i];
+        }
+        //infoText.text = mapData.MapSizeWidth.ToString();
+    }
+
+    async void ReadSystemDBTest()
+    {
+        string datPath = Application.streamingAssetsPath
+            + "/Project/Data/BasicData/SysDataBase.dat";
+        string projectPath = Application.streamingAssetsPath
+            + "/Project/Data/BasicData/SysDataBase.project";
+
+        var reader = new DatabaseMergedDataReader();
+        WodiLib.Database.DatabaseMergedData data = await reader.Read(datPath,projectPath);
+        var list=data.GetDataDescList(0).ToList();
+
+        infoText.text = "";
+        for(int i = 0; i < list.Count; i++)
+        {
+            infoText.text += list[i].DataName + "\n";
+        }
     }
 }
