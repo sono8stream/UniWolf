@@ -7,7 +7,7 @@ namespace WodiLib.UnityUtil.IO
     {
         public DatabaseMergedDataReader() { }
 
-        public async Task<DatabaseMergedData> Read(
+        public async Task<DatabaseMergedData> ReadFilesAsync(
             string datFilePath,string projectFilePath)
         {
             var datFileReader = new DatabaseDatFileReader();

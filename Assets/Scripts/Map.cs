@@ -22,7 +22,7 @@ public class Map : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        ReadSystemDBTest();
+        ReadTileSetTest();
     }
 
     // Update is called once per frame
@@ -62,7 +62,7 @@ public class Map : MonoBehaviour
             + "/Project/Data/BasicData/SysDataBase.project";
 
         var reader = new DatabaseMergedDataReader();
-        WodiLib.Database.DatabaseMergedData data = await reader.Read(datPath,projectPath);
+        WodiLib.Database.DatabaseMergedData data = await reader.ReadFilesAsync(datPath,projectPath);
         var list=data.GetDataDescList(0).ToList();
 
         infoText.text = "";
@@ -70,5 +70,17 @@ public class Map : MonoBehaviour
         {
             infoText.text += list[i].DataName + "\n";
         }
+    }
+
+    async void ReadTileSetTest()
+    {
+        string path = Application.streamingAssetsPath
+            + "/Project/Data/BasicData/TileSetData.dat";
+
+        var reader = new TileSetDataFileReader();
+        TileSetData setData = await reader.ReadFileAsync(path);
+        var settingList = setData.TileSetSettingList.ToList();
+
+        infoText.text = "";
     }
 }
