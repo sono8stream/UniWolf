@@ -1,14 +1,10 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
-using System.Threading.Tasks;
+﻿using UnityEngine;
 using UnityEngine.UI;
 using WodiLib.UnityUtil.IO;
-using System;
 using WodiLib.Map;
 using System.Linq;
 
-public class Map : MonoBehaviour
+public class IOTest : MonoBehaviour
 {
     [SerializeField]
     string projectPath;
@@ -36,7 +32,7 @@ public class Map : MonoBehaviour
         pathText.text = Application.streamingAssetsPath;
         string path = Application.streamingAssetsPath + "/Project/Data/MapData/SampleMapA.mps";
         Debug.Log(path);
-            var mpsReader = new MpsFileReader();
+        var mpsReader = new MpsFileReader();
         MapData mapData = await mpsReader.ReadFileAsync(path);
         infoText.text = mapData.MapSizeWidth.ToString();
     }
@@ -47,7 +43,7 @@ public class Map : MonoBehaviour
         string path = Application.streamingAssetsPath + "/Project/Data/BasicData/MapTree.dat";
         var reader = new MapTreeDataFileReader();
         MapTreeData data = await reader.ReadFileAsync(path);
-        for(int i = 0; i < data.TreeNodeList.Count; i++)
+        for (int i = 0; i < data.TreeNodeList.Count; i++)
         {
             MapTreeNode node = data.TreeNodeList[i];
         }
@@ -62,11 +58,11 @@ public class Map : MonoBehaviour
             + "/Project/Data/BasicData/SysDataBase.project";
 
         var reader = new DatabaseMergedDataReader();
-        WodiLib.Database.DatabaseMergedData data = await reader.ReadFilesAsync(datPath,projectPath);
-        var list=data.GetDataDescList(0).ToList();
+        WodiLib.Database.DatabaseMergedData data = await reader.ReadFilesAsync(datPath, projectPath);
+        var list = data.GetDataDescList(0).ToList();
 
         infoText.text = "";
-        for(int i = 0; i < list.Count; i++)
+        for (int i = 0; i < list.Count; i++)
         {
             infoText.text += list[i].DataName + "\n";
         }
