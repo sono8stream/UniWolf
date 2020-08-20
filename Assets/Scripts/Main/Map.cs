@@ -8,6 +8,7 @@ using System;
 using WodiLib.Map;
 using System.Linq;
 using UnityEditor.Experimental.GraphView;
+using WodiLib.Database;
 
 public class Map : MonoBehaviour
 {
@@ -23,10 +24,24 @@ public class Map : MonoBehaviour
     [SerializeField]
     Text infoText;
 
+    string dataPath = Application.streamingAssetsPath + "/Project/Data/";
+
+    Texture2D baseTileTexture;
+    Texture2D[] autoTileTextures;
+
+    int chipSize = 16;
+    int[] autoTileMasks;
+    int[] autoTileXs;
+    int[] autoTileYs;
+
     // Start is called before the first frame update
     void Start()
     {
-        ReadMap();
+        autoTileMasks = new int[4] { 1, 10, 100, 1000 };
+        autoTileXs = new int[4] { chipSize / 2, 0, chipSize / 2, 0 };
+        autoTileYs = new int[4] { chipSize / 2, chipSize / 2, 0, 0 };
+
+        RenderMap();
     }
 
     // Update is called once per frame
@@ -35,16 +50,10 @@ public class Map : MonoBehaviour
 
     }
 
-    async void ReadMap()
+    async void RenderMap()
     {
-        string dataPath = Application.streamingAssetsPath + "/Project/Data/";
-
-        string datPath = dataPath+"BasicData/SysDataBase.dat";
-        string projectPath = dataPath+"BasicData/SysDataBase.project";
-
-        var dbReader = new DatabaseMergedDataReader();
-        WodiLib.Database.DatabaseMergedData data = await dbReader.ReadFilesAsync(datPath, projectPath);
-        var mapDataList = data.GetDataDescList(0);
+        DatabaseMergedData systemDB = await ReadSystemDB();
+        var mapDataList = systemDB.GetDataDescList(0);
         if(mapNo>= mapDataList.Count)
         {
             return;
@@ -59,24 +68,9 @@ public class Map : MonoBehaviour
         TileSetData setData = await reader.ReadFileAsync(tileSetPath);
         TileSetSetting tileSetting = setData.TileSetSettingList[mapData.TileSetId];
 
-        string baseTilePath = dataPath + tileSetting.BaseTileSetFileName;
-        infoText.text = baseTilePath;
-        byte[] baseTileBytes = System.IO.File.ReadAllBytes(baseTilePath);
-        Texture2D baseTileTexture = new Texture2D(1, 1);
-        baseTileTexture.LoadImage(baseTileBytes);
-        baseTileTexture.filterMode = FilterMode.Point;
+        ReadBaseTileTexture(tileSetting.BaseTileSetFileName);
 
-        Texture2D[] autoTileTextures = new Texture2D[tileSetting.AutoTileFileNameList.Count];
-        for (int i = 0; i < tileSetting.AutoTileFileNameList.Count; i++)
-        {
-            string autoTilePath = dataPath + tileSetting.AutoTileFileNameList[i].ToString();
-            byte[] autoTileBytes = System.IO.File.ReadAllBytes(autoTilePath);
-            autoTileTextures[i] = new Texture2D(1, 1);
-            autoTileTextures[i].LoadImage(autoTileBytes);
-            autoTileTextures[i].filterMode = FilterMode.Point;
-        }
-
-        const int chipSize = 16;
+        ReadAutoTileTextures(tileSetting.AutoTileFileNameList.ToArray());
 
         Texture2D mapTexture
             = new Texture2D(mapData.MapSizeWidth * chipSize, mapData.MapSizeHeight * chipSize);
@@ -89,26 +83,93 @@ public class Map : MonoBehaviour
                     int id = mapData.GetLayer(k).Chips[j][i];
                     if (mapData.GetLayer(k).Chips[j][i].IsAutoTile)
                     {
-                        id = id / 100000 - 2;
-                        if (id >= 0)
-                        {
-                            mapTexture.SetPixels(j * chipSize, (mapData.MapSizeHeight - i - 1) * chipSize, chipSize, chipSize,
-                                autoTileTextures[id].GetPixels(0, autoTileTextures[id].height - 1 - chipSize, chipSize, chipSize));
-                        }
+                        RenderAutoTile(mapTexture, j, i, id);
                     }
                     else
                     {
-                        mapTexture.SetPixels(j * chipSize, (mapData.MapSizeHeight - i - 1) * chipSize, chipSize, chipSize,
-                            baseTileTexture.GetPixels((id % 8) * chipSize, baseTileTexture.height - (id / 8 + 1) * chipSize, chipSize, chipSize));
+                        RenderNormalTile(mapTexture, j, i, id);
                     }
                 }
             }
         }
         mapTexture.Apply();
+        mapTexture.filterMode = FilterMode.Point;
 
         Sprite sprite = Sprite.Create(mapTexture,
             new Rect(0.0f, 0.0f, mapTexture.width, mapTexture.height), new Vector2(0.5f, 0.5f), 1.0f);
         mapSprite.sprite = sprite;
+    }
+
+    async Task<DatabaseMergedData> ReadSystemDB()
+    {
+        string datPath = dataPath + "BasicData/SysDataBase.dat";
+        string projectPath = dataPath + "BasicData/SysDataBase.project";
+
+        var dbReader = new DatabaseMergedDataReader();
+        DatabaseMergedData data = await dbReader.ReadFilesAsync(datPath, projectPath);
+        return data;
+    }
+
+    void ReadBaseTileTexture(string baseTilePath)
+    {
+        baseTileTexture = new Texture2D(1, 1);
+        byte[] bytes = System.IO.File.ReadAllBytes(dataPath + baseTilePath);
+        baseTileTexture.LoadImage(bytes);
+        baseTileTexture.filterMode = FilterMode.Point;
+    }
+
+    void ReadAutoTileTextures(AutoTileFileName[] autoTilePaths)
+    {
+        autoTileTextures = new Texture2D[autoTilePaths.Length];
+
+        for (int i = 0; i < autoTilePaths.Length; i++)
+        {
+            string autoTilePath = dataPath + autoTilePaths[i].ToString();
+            byte[] autoTileBytes = System.IO.File.ReadAllBytes(autoTilePath);
+            autoTileTextures[i] = new Texture2D(1, 1);
+            autoTileTextures[i].LoadImage(autoTileBytes);
+            autoTileTextures[i].filterMode = FilterMode.Point;
+        }
+    }
+
+    void RenderAutoTile(Texture2D target, int x, int y, int id)
+    {
+        int tileId = id / 100000 - 2;
+        if (tileId < 0)
+        {
+            return;
+        }
+
+        for (int i = 0; i < chipSize / 2; i++)
+        {
+            for (int j = 0; j < chipSize / 2; j++)
+            {
+                for (int k = 0; k < 4; k++)
+                {
+                    int code = (id / autoTileMasks[k]) % 10;
+                    Color color = autoTileTextures[tileId].GetPixel(autoTileXs[k] + j, autoTileTextures[tileId].height - (code + 1) * chipSize + chipSize / 2 - autoTileYs[k] + i);
+                    if (color.a == 1)
+                    {
+                        target.SetPixel(x * chipSize + autoTileXs[k] + j, target.height - (y + 1) * chipSize + chipSize / 2 - autoTileYs[k] + i, color);
+                    }
+                }
+            }
+        }
+    }
+
+    void RenderNormalTile(Texture2D target,int x,int y,int id)
+    {
+        for(int i = 0; i < chipSize; i++)
+        {
+            for(int j = 0; j < chipSize; j++)
+            {
+                Color color = baseTileTexture.GetPixel(id % 8 * chipSize + j, baseTileTexture.height - (id / 8 + 1) * chipSize + i);
+                if (color.a == 1)
+                {
+                    target.SetPixel(x * chipSize + j, target.height - (y + 1) * chipSize + i, color);
+                }
+            }
+        }
     }
 
     async void ReadTest()
@@ -160,34 +221,5 @@ public class Map : MonoBehaviour
         var reader = new TileSetDataFileReader();
         TileSetData setData = await reader.ReadFileAsync(path);
         var settingList = setData.TileSetSettingList.ToList();
-
-        RenderMap(settingList[0]);
-    }
-
-    void RenderMap(TileSetSetting setting)
-    {
-        string baseTilePath = Application.streamingAssetsPath
-            + "/Project/Data/" + setting.BaseTileSetFileName;
-        infoText.text = baseTilePath;
-        byte[] baseTileBytes = System.IO.File.ReadAllBytes(baseTilePath);
-        Texture2D baseTileTexture = new Texture2D(1, 1);
-        baseTileTexture.LoadImage(baseTileBytes);
-
-        Texture2D[] autoTileTextures = new Texture2D[setting.AutoTileFileNameList.Count];
-        for(int i = 0; i < setting.AutoTileFileNameList.Count; i++)
-        {
-            string autoTilePath = Application.streamingAssetsPath
-            + "/Project/Data/" + setting.AutoTileFileNameList[i].ToString();
-            byte[] autoTileBytes = System.IO.File.ReadAllBytes(autoTilePath);
-            autoTileTextures[i] = new Texture2D(1, 1);
-            autoTileTextures[i].LoadImage(autoTileBytes);
-        }
-
-        const int chipSize = 16;
-
-
-        //Sprite sprite= Sprite.Create(tex,
-        //    new Rect(0.0f, 0.0f, tex.width, tex.height), new Vector2(0.5f, 0.5f), 1.0f);
-        //mapSprite.sprite = sprite;
     }
 }
