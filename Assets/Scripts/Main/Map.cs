@@ -1,14 +1,11 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 using System.Threading.Tasks;
 using UnityEngine.UI;
 using WodiLib.UnityUtil.IO;
-using System;
 using WodiLib.Map;
 using System.Linq;
-using UnityEditor.Experimental.GraphView;
 using WodiLib.Database;
+using Models;
 
 public class Map : MonoBehaviour
 {
@@ -29,7 +26,7 @@ public class Map : MonoBehaviour
     Texture2D baseTileTexture;
     Texture2D[] autoTileTextures;
 
-    int chipSize = 16;
+    int chipSize;
     int[] autoTileMasks;
     int[] autoTileXs;
     int[] autoTileYs;
@@ -37,6 +34,8 @@ public class Map : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
+        chipSize = GameBasicInfo.Instance.TilePixels;
+
         autoTileMasks = new int[4] { 1, 10, 100, 1000 };
         autoTileXs = new int[4] { chipSize / 2, 0, chipSize / 2, 0 };
         autoTileYs = new int[4] { chipSize / 2, chipSize / 2, 0, 0 };
@@ -92,6 +91,30 @@ public class Map : MonoBehaviour
                 }
             }
         }
+
+        for (int i = 0; i < mapData.MapEvents.Count; i++)
+        {
+            int x = mapData.MapEvents[i].Position.X;
+            int y = mapData.MapEvents[i].Position.Y;
+            MapEventPage mapEventPage = mapData.MapEvents[i].MapEventPageList[0];
+            if (mapEventPage.GraphicInfo.IsGraphicTileChip)
+            {
+                int tileId = mapEventPage.GraphicInfo.GraphicTileId;
+                RenderNormalTile(mapTexture, x, y, tileId);
+            }
+            else if (!string.IsNullOrEmpty(mapEventPage.GraphicInfo.CharaChipFilePath))
+            {
+                string graphicPath = dataPath + mapEventPage.GraphicInfo.CharaChipFilePath;
+                Debug.Log(graphicPath);
+                CharaChipDirection charaChipDirection = mapEventPage.GraphicInfo.InitDirection;
+                Texture2D charaChipTexture = new Texture2D(1, 1);
+                byte[] bytes = System.IO.File.ReadAllBytes(graphicPath);
+                charaChipTexture.LoadImage(bytes);
+                charaChipTexture.filterMode = FilterMode.Point;
+                RenderCharaChip(mapTexture, x, y, charaChipTexture, charaChipDirection);
+            }
+        }
+
         mapTexture.Apply();
         mapTexture.filterMode = FilterMode.Point;
 
@@ -167,6 +190,30 @@ public class Map : MonoBehaviour
                 if (color.a == 1)
                 {
                     target.SetPixel(x * chipSize + j, target.height - (y + 1) * chipSize + i, color);
+                }
+            }
+        }
+    }
+
+    void RenderCharaChip(Texture2D target, int x, int y,
+        Texture2D charaChipTexture, CharaChipDirection direction)
+    {
+        int charaWidth = charaChipTexture.width
+            / (GameBasicInfo.Instance.CharaAnimations * GameBasicInfo.Instance.CharaImageDirections / 4);
+        int charaHeight = charaChipTexture.height / 4;
+
+        int xOffset = (chipSize - charaWidth) / 2;
+
+        for (int i = 0; i < charaHeight; i++)
+        {
+            for (int j = 0; j < charaWidth; j++)
+            {
+                Color color = charaChipTexture.GetPixel(j, charaChipTexture.height - charaHeight + i);
+                if (color.a == 1 &&
+                    x * chipSize + j + xOffset >= 0 && x * chipSize + j + xOffset < target.width)
+                {
+                    target.SetPixel(x * chipSize + j + xOffset,
+                        target.height - (y + 1) * chipSize + i, color);
                 }
             }
         }
